@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPS Tracking Helper</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #7B5800;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin: 10px 0;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #7B5800;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #5A4000;
+        }
+        .results {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        .tracking-link {
+            margin: 5px 0;
+        }
+        .timer {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .instructions {
+            background-color: #fffaeb;
+            padding: 15px;
+            border-left: 4px solid #7B5800;
+            margin-bottom: 20px;
+        }
+        .download-btn {
+            background-color: #006666;
+        }
+        .download-btn:hover {
+            background-color: #004444;
+        }
+    </style>
+</head>
+<body>
+    <h1>UPS Tracking Helper</h1>
+    
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Paste your tracking numbers below (one per line)</li>
+            <li>Click "Generate Tracking Links"</li>
+            <li>Click each link to open a new UPS tracking page</li>
+            <li>Wait 10-15 seconds between clicking links to avoid rate limiting</li>
+            <li>Record the delivery information in the results area using this format:<br>
+                <code>[tracking_number]&nbsp;&nbsp;[delivery_date]&nbsp;&nbsp;[delivery_time]&nbsp;&nbsp;[location]&nbsp;&nbsp;[received_by]</code><br>
+                Example: <code>1Z0864W03537203&nbsp;&nbsp;April 30&nbsp;&nbsp;11:11 A.M.&nbsp;&nbsp;Front Desk&nbsp;&nbsp;CINDY</code></li>
+            <li>When finished, click "Download Results" to save as a text file</li>
+        </ol>
+    </div>
+    
+    <h3>Enter Tracking Numbers (one per line):</h3>
+    <textarea id="trackingNumbers" placeholder="Enter tracking numbers here, one per line"></textarea>
+    
+    <button onclick="generateLinks()">Generate Tracking Links</button>
+    
+    <div id="linkContainer" style="display:none;">
+        <h3>Tracking Links:</h3>
+        <div id="links"></div>
+        <p>Click the links above to open UPS tracking pages. Wait 10-15 seconds between clicks.</p>
+        <div class="timer" id="timer">Ready</div>
+    </div>
+    
+    <div id="resultsContainer" style="display:none;">
+        <h3>Record Delivery Information:</h3>
+        <p>Format each entry as: <code>[tracking_number]&nbsp;&nbsp;[delivery_date]&nbsp;&nbsp;[delivery_time]&nbsp;&nbsp;[location]&nbsp;&nbsp;[received_by]</code></p>
+        <textarea id="resultsArea" placeholder="Example:
+1Z0864W035372033&nbsp;&nbsp;April 30&nbsp;&nbsp;11:11 A.M.&nbsp;&nbsp;Front Desk&nbsp;&nbsp;CINDY
+1Z0864W035301234&nbsp;&nbsp;May 1&nbsp;&nbsp;9:45 A.M.&nbsp;&nbsp;Reception&nbsp;&nbsp;JOHN"></textarea>
+        <button class="download-btn" onclick="downloadResults()">Download Results</button>
+    </div>
+    
+    <script>
+        // Function to generate tracking links
+        function generateLinks() {
+            const trackingInput = document.getElementById('trackingNumbers').value;
+            const trackingNumbers = trackingInput.split('\n').filter(num => num.trim() !== '');
+            
+            if (trackingNumbers.length === 0) {
+                alert('Please enter at least one tracking number');
+                return;
+            }
+            
+            const linksDiv = document.getElementById('links');
+            linksDiv.innerHTML = '';
+            
+            // Initialize results area with headers
+            const resultsArea = document.getElementById('resultsArea');
+            resultsArea.value = 'UPS Tracking Results - Generated on ' + new Date().toLocaleString() + '\n\n';
+            resultsArea.value += 'Tracking Number\tDelivery Status\n';
+            resultsArea.value += ''.padEnd(60, '-') + '\n';
+            
+            // Add each tracking number to results
+            trackingNumbers.forEach((number, index) => {
+                const trimmedNumber = number.trim();
+                if (trimmedNumber) {
+                    // Create link
+                    const link = document.createElement('div');
+                    link.className = 'tracking-link';
+                    const url = `https://www.ups.com/track?loc=en_US&requester=ST/&tracknum=${trimmedNumber}`;
+                    
+                    link.innerHTML = `
+                        <a href="${url}" target="_blank">${index + 1}. ${trimmedNumber}</a>
+                    `;
+                    linksDiv.appendChild(link);
+                    
+                    // Add to results template
+                    resultsArea.value += `${trimmedNumber}\t\n`;
+                }
+            });
+            
+            // Show the links and results sections
+            document.getElementById('linkContainer').style.display = 'block';
+            document.getElementById('resultsContainer').style.display = 'block';
+            
+            // Setup timer
+            setupTimer();
+        }
+        
+        // Function for timer
+        function setupTimer() {
+            const timerElement = document.getElementById('timer');
+            let seconds = 15;
+            
+            timerElement.textContent = `Wait ${seconds} seconds between clicks`;
+            
+            const interval = setInterval(() => {
+                seconds--;
+                if (seconds <= 0) {
+                    timerElement.textContent = 'Ready for next tracking number';
+                    clearInterval(interval);
+                } else {
+                    timerElement.textContent = `Wait ${seconds} seconds between clicks`;
+                }
+            }, 1000);
+        }
+        
+        // Function to download results
+        function downloadResults() {
+            const resultsText = document.getElementById('resultsArea').value;
+            if (resultsText.trim() === '') {
+                alert('Please enter delivery information before downloading');
+                return;
+            }
+            
+            const currentDate = new Date().toLocaleString();
+            
+            // Format the results with proper headers and formatting
+            let formattedResults = 'UPS Tracking Results - Generated on ' + currentDate + '\n\n';
+            formattedResults += 'Tracking Number\tDelivery Date\tDelivery Time\tLocation\tReceived By\n';
+            formattedResults += ''.padEnd(100, '-') + '\n';
+            
+            // Process each line of the results
+            const lines = resultsText.split('\n');
+            for (const line of lines) {
+                if (line.trim() && line.includes('1Z')) {
+                    formattedResults += line + '\n';
+                }
+            }
+            
+            const blob = new Blob([formattedResults], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ups_delivery_info.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
